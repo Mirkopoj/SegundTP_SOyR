@@ -11,8 +11,20 @@
 #define PORT 3551 /* El puerto que será abierto */
 #define BACKLOG 10 /* El número de conexiones permitidas */
 
-int main()
-{
+int main(){
+
+	const char primos[25] = {
+		    2, 3, 5, 7,
+		11,   13,   17,19,
+		      23,      29,
+		31,         37,
+		41,   43,   47,
+		      53,      59,
+		61,         67,
+		71,   73,      79,
+		      83,      89,
+		            97
+	};
 
    int fd, fd2; /* descriptores de sockets */
    char str[100];
