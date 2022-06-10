@@ -1,4 +1,3 @@
-
 /* Estos son los ficheros de cabecera usuales */
 #include <stdio.h>    
 #include <stdlib.h>     
@@ -25,7 +24,7 @@ int main()
    struct sockaddr_in client; 
    /* para la información de la dirección del cliente */
 
-   int sin_size;
+   unsigned int sin_size;
 
    /* A continuación la llamada a socket() */
    if ((fd=socket(AF_INET, SOCK_STREAM, 0)) == -1 ) {  
@@ -43,7 +42,7 @@ int main()
    /* INADDR_ANY coloca nuestra dirección IP automáticamente */
 
    //memset(&(server.sin_zero), 0, sizeof(server.sin_zero));
-   bzero(&(server.sin_zero),0); 
+   bzero(&(server.sin_zero), sizeof(server.sin_zero)); 
    /* escribimos ceros en el reto de la estructura */
 
 
@@ -74,7 +73,7 @@ int main()
       printf("Se obtuvo una conexión desde %s\n", desde ); 
       /* que mostrará la IP del cliente:  inet_ntoa() convierte a una cadena que contiene una dirección IP en un entero largo. */
 
-      send(fd2,"Bienvenido a mi servidor.\n",22,0); 
+      send(fd2,"Bienvenido a mi servidor.\n",26,0); 
       /* que enviará el mensaje de bienvenida al cliente */
 
       /******************/
