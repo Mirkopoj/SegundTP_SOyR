@@ -8,23 +8,23 @@
 #include <arpa/inet.h>
 #include <sys/unistd.h>
 
-#define PORT 3551 /* El puerto que será abierto */
+#define PORT 3551 /* El puerto para numeros secuenciales */
 #define BACKLOG 10 /* El número de conexiones permitidas */
 
 int main(){
 
-	const char primos[25] = {
-		    2, 3, 5, 7,
-		11,   13,   17,19,
-		      23,      29,
-		31,         37,
-		41,   43,   47,
-		      53,      59,
-		61,         67,
-		71,   73,      79,
-		      83,      89,
-		            97
-	};
+   const char *primos[25] = {
+		     " 2"," 3"," 5"," 7",
+		"11",     "13",     "17","19",
+		          "23",          "29",
+		"31",               "37",
+		"41",     "43",     "47",
+		          "53",          "59",
+		"61",               "67",
+		"71",     "73",          "79",
+		          "83",          "89",
+			                      "97"
+   };
 
    int fd, fd2; /* descriptores de sockets */
    char str[100];
@@ -90,23 +90,53 @@ int main(){
 
       /******************/
 
-       printf("Connected.\n");
+		printf("Connected.\n");
 
-        done = 0;
-        do {
-            n = recv(fd2, str, 100, 0);
-            printf("Servidor: recibe %s \n", str);
-            if (n <= 0) {
-                if (n < 0) perror("recv");
-                done = 1;
-            }
+		char cont = 0;
+		done = 0;
+		do {		
 
-            if (!done) 
-                if (send(fd2, str, n, 0) < 0) {
-                    perror("send");
-                    done = 1;
-                }
-        } while (!done);
+			if (!done) { 
+				if (send(fd2, primos[rand()%25], 2, 0) < 0) {
+					perror("send");
+					done = 1;
+				}
+				n = recv(fd2, str, 100, 0);	
+				if (n <= 0) {
+					if (n < 0) perror("recv");
+					done = 1;
+				}
+				cont++;
+			}
+		
+			/* Primos en Orden
+			if (!done) { 
+				if (send(fd2, primos[cont%25], 2, 0) < 0) {
+					perror("send");
+					done = 1;
+				}
+				n = recv(fd2, str, 100, 0);	
+				if (n <= 0) {
+					if (n < 0) perror("recv");
+					done = 1;
+				}
+				cont++;
+			}*/
+				
+         /* Original
+			n = recv(fd2, str, 100, 0);
+         printf("Servidor: recibe %s \n", str);
+         if (n <= 0) {
+            if (n < 0) perror("recv");
+            done = 1;
+         }
+
+			if (!done) 
+				if (send(fd2, str, n, 0) < 0) {
+					perror("send");
+               done = 1;
+				}*/
+	  } while (!done);
 
       //  close(s2);
 
@@ -115,5 +145,5 @@ int main(){
       close(fd2); /* cierra fd2 */
       i++;
    }
+	close(fd);
 }
-
