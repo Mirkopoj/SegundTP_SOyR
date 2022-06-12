@@ -1,20 +1,10 @@
 /* Estos son los ficheros de cabecera usuales */
-#include <asm-generic/errno-base.h>
-#include <asm-generic/errno.h>
-#include <cerrno>
-#include <ratio>
-#include <stdint.h>
-#include <stdio.h>    
-#include <stdlib.h>     
 #include <strings.h> 
 #include <sys/poll.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/unistd.h>
+
 #include <future>
-#include <chrono>
 
 #define PORT_SEC 3551  /* El puerto para numeros secuenciales */
 #define PORT_RAND 3552 /* El puerto para numeros aleatorios */
@@ -39,22 +29,7 @@ enum MODO{
 	aleatrorio
 };
 
-void get_async(int *n, const int fd2, char *str, int *done){
-	*n = recv(fd2, str, 100, 0);	
-	if (*n <= 0) {
-		if (*n < 0) perror("recv");
-		*done = 1;
-	}
-}
-
-void accept_async(int *fd2, const int fd, struct sockaddr_in *client, unsigned int *sin_size, const enum MODO modo){
-      if ((*fd2 = accept(fd,(struct sockaddr *)client, sin_size))==-1) {
-         printf("Error en accept(): %d\n",modo);
-         exit(-1);
-      }
-}
-
-int server_thread(enum MODO *modo){
+void server_thread(enum MODO *modo){
    int fd, fd2; /* descriptores de sockets */
    char str[100];
    int done;
@@ -99,23 +74,23 @@ int server_thread(enum MODO *modo){
       exit(-1);
    }
 
-   int i=0, n=0, errsv; 
+   int i=0, n, errsv; 
 	unsigned char cont = 0;
 	unsigned char mensaje;
    char *ip_cliente;
-	std::future<void> recieve_future;
-	std::future<void> accept_future;
+
+	int poll_status;
+	struct pollfd poll_str = {
+		.fd = fd,
+		.events = POLLIN,
+	};
+
    while(i < 10 && *modo != apagado) {
       sin_size=sizeof(struct sockaddr_in);
        
       /* A continuación la llamada a accept() */
 		printf("prewhile1\n");
 
-		int poll_status;
-		struct pollfd poll_str = {
-			.fd = fd,
-			.events = POLLIN,
-		};
 		do {
 			poll_status = poll(&poll_str, 1, 1000);
 		} while(*modo != apagado && poll_status < 1);
@@ -134,7 +109,7 @@ int server_thread(enum MODO *modo){
 			close(fd);
 			printf("yending\n");
 
-			return 1;
+			return;
 			printf("ido\n");
 		}
 
@@ -145,7 +120,7 @@ int server_thread(enum MODO *modo){
       printf("Se obtuvo una conexión desde %s\n", ip_cliente); 
       /* que mostrará la IP del cliente:  inet_ntoa() convierte a una cadena que contiene una dirección IP en un entero largo. */
 
-      send(fd2,"*BIENVENIDO AL FANTASTICO GENERADOR DE NUMEROS PRIMOS*\n(puramente matematico no hay una tabla detras)\n",104,0); 
+      send(fd2,"*BIENVENIDO AL FANTASTICO GENERADOR DE NUMEROS PRIMOS*\n(puramente matematico no hay una tabla detras)\n",102,0); 
       /* que enviará el mensaje de bienvenida al cliente */
 
       /******************/
@@ -162,26 +137,6 @@ int server_thread(enum MODO *modo){
 				}
 
 				printf("prewhile2\n");
-				/*recieve_future = std::async(std::launch::async, get_async, &n, fd2, str, &done);
-				while(*modo != apagado && recieve_future.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready);
-*/
-/*				int poll_status;
-				struct pollfd poll_str = {
-					.fd = fd,
-					.events = POLLIN,
-				};
-				do {
-					poll_status = poll(&poll_str, 1, 1000);
-				} while(*modo != apagado && poll_status < 1);
-				printf("postwhile2\n");
-
-				if(*modo == apagado) done = 1;
-
-				n = recv(fd2, str, 100, 0);	
-				if (n <= 0) {
-					if (n < 0) perror("recv");
-					done = 1;
-				}*/
 
 				n=0;
 				while(*modo != apagado && n < 1 && !done){
@@ -206,12 +161,12 @@ int server_thread(enum MODO *modo){
    }
 	close(fd);
 
-	return 0;
+	return;
 }
 
 int main(){
 
-	std::future<int> server_sec_thread, server_rand_thread;
+	std::future<void> server_sec_thread, server_rand_thread;
 	enum MODO modo_sec = secuencial, modo_rand = aleatrorio;
 
 	server_sec_thread  = std::async(std::launch::async, server_thread, &modo_sec);
@@ -227,7 +182,7 @@ int main(){
 	printf("no sec\n");
 	server_rand_thread.wait();
 
-	printf("Se acabaron los numeros primos, %d, %d", server_sec_thread.get(), server_rand_thread.get());
+	printf("Se acabaron los numeros primos");
 
 	return 0;
 }
