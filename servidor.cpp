@@ -3,8 +3,10 @@
 #include <sys/poll.h>
 #include <arpa/inet.h>
 #include <sys/unistd.h>
+#include <semaphore.h>
 
 #include <future>
+#include <unistd.h>
 
 #define PORT_SEC 3551  /* El puerto para numeros secuenciales */
 #define PORT_RAND 3552 /* El puerto para numeros aleatorios */
@@ -29,10 +31,45 @@ enum MODO{
 	aleatrorio
 };
 
+void client_thread(int fd2, enum MODO *modo, sem_t *anti_backlog){
+   char str[100];
+	int n, errsv;
+	unsigned char mensaje, done = 0, cont = 0;
+
+	while (!done) {		
+		mensaje = (*modo == secuencial)? cont:rand();
+		if (send(fd2, primos[mensaje%25], 2, 0) < 0) {
+			perror("send");
+			done = 1;
+		}
+
+		printf("prewhile2\n");
+
+		n=0;
+		while(*modo != apagado && n < 1 && !done){
+			n = recv(fd2, str, 100, MSG_DONTWAIT);	
+			errsv = errno;
+			if (n == 0) done = 1;
+			if (n < 0){
+				if((errsv!=EAGAIN)&&(errsv!=EWOULDBLOCK)){
+					perror("recv");
+					done = 1;
+				}
+			}
+		}
+
+		if(*modo == apagado) done = 1;
+		cont++;
+		printf("postwhile2, modo: %d, apagado: %d, n: %d, done: %d\n", *modo, apagado, n, done);
+	};
+
+	close(fd2); 
+	sem_post(anti_backlog);
+	return;
+}
+
 void server_thread(enum MODO *modo){
    int fd, fd2; /* descriptores de sockets */
-   char str[100];
-   int done;
 
    struct sockaddr_in server; 
    /* para la información de la dirección del servidor */
@@ -74,9 +111,8 @@ void server_thread(enum MODO *modo){
       exit(-1);
    }
 
-   int i=0, n, errsv; 
+   int i=0; 
 	unsigned char cont = 0;
-	unsigned char mensaje;
    char *ip_cliente;
 
 	int poll_status;
@@ -85,7 +121,11 @@ void server_thread(enum MODO *modo){
 		.events = POLLIN,
 	};
 
-   while(i < 10 && *modo != apagado) {
+	sem_t anti_backlog;
+	sem_init(&anti_backlog, 0, BACKLOG);
+	std::future<void> clientes[BACKLOG];
+   
+	while(*modo != apagado) {
       sin_size=sizeof(struct sockaddr_in);
        
       /* A continuación la llamada a accept() */
@@ -127,6 +167,7 @@ void server_thread(enum MODO *modo){
 
 		printf("Connected.\n");
 
+		/*
 		done = 0;
 
 	   while (!done) {		
@@ -156,9 +197,18 @@ void server_thread(enum MODO *modo){
 				printf("postwhile2, modo: %d, apagado: %d, n: %d, done: %d\n", *modo, apagado, n, done);
 	  };
 
-      close(fd2); /* cierra fd2 */
-      i++;
+      close(fd2); 
+		i++;
+		*/
+
+		int sval;
+		sem_wait(&anti_backlog);
+		sem_getvalue(&anti_backlog, &sval);
+		clientes[sval] = std::async(std::launch::async, client_thread, fd2, modo, &anti_backlog);
+      
+
    }
+	close(fd2);
 	close(fd);
 
 	return;
