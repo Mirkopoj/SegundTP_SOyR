@@ -196,8 +196,9 @@ int server_thread(enum MODO *modo){
 					}
 				}
 
+				if(*modo == apagado) done = 1;
 				cont++;
-				printf("postwhile2");
+				printf("postwhile2, modo: %d, apagado: %d, n: %d, done: %d\n", *modo, apagado, n, done);
 	  };
 
       close(fd2); /* cierra fd2 */
