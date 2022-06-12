@@ -1,6 +1,7 @@
 /* Estos son los ficheros de cabecera usuales */
 #include <asm-generic/errno-base.h>
 #include <asm-generic/errno.h>
+#include <cerrno>
 #include <ratio>
 #include <stdint.h>
 #include <stdio.h>    
@@ -14,7 +15,6 @@
 #include <sys/unistd.h>
 #include <future>
 #include <chrono>
-#include <poll.h>
 
 #define PORT_SEC 3551  /* El puerto para numeros secuenciales */
 #define PORT_RAND 3552 /* El puerto para numeros aleatorios */
@@ -99,7 +99,7 @@ int server_thread(enum MODO *modo){
       exit(-1);
    }
 
-   int i=0, n; 
+   int i=0, n=0, errsv; 
 	unsigned char cont = 0;
 	unsigned char mensaje;
    char *ip_cliente;
@@ -119,7 +119,13 @@ int server_thread(enum MODO *modo){
 		do {
 			poll_status = poll(&poll_str, 1, 1000);
 		} while(*modo != apagado && poll_status < 1);
+
 		printf("postwhile1\n");
+
+		if(poll_status < 0){
+			printf("Error en poll(): %d\n", *modo);
+			exit(-1);
+		}
 
 		if(*modo == apagado){
 			printf("imaheadout\n");
@@ -156,12 +162,42 @@ int server_thread(enum MODO *modo){
 				}
 
 				printf("prewhile2\n");
-				recieve_future = std::async(std::launch::async, get_async, &n, fd2, str, &done);
+				/*recieve_future = std::async(std::launch::async, get_async, &n, fd2, str, &done);
 				while(*modo != apagado && recieve_future.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready);
+*/
+/*				int poll_status;
+				struct pollfd poll_str = {
+					.fd = fd,
+					.events = POLLIN,
+				};
+				do {
+					poll_status = poll(&poll_str, 1, 1000);
+				} while(*modo != apagado && poll_status < 1);
 				printf("postwhile2\n");
 
 				if(*modo == apagado) done = 1;
+
+				n = recv(fd2, str, 100, 0);	
+				if (n <= 0) {
+					if (n < 0) perror("recv");
+					done = 1;
+				}*/
+
+				n=0;
+				while(*modo != apagado && n < 1 && !done){
+					n = recv(fd2, str, 100, MSG_DONTWAIT);	
+					errsv = errno;
+					if (n == 0) done = 1;
+					if (n < 0){
+						if((errsv!=EAGAIN)&&(errsv!=EWOULDBLOCK)){
+							perror("recv");
+							done = 1;
+						}
+					}
+				}
+
 				cont++;
+				printf("postwhile2");
 	  };
 
       close(fd2); /* cierra fd2 */
