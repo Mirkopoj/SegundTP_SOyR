@@ -1,14 +1,20 @@
 /* Estos son los ficheros de cabecera usuales */
+#include <asm-generic/errno-base.h>
+#include <asm-generic/errno.h>
+#include <ratio>
 #include <stdint.h>
 #include <stdio.h>    
 #include <stdlib.h>     
 #include <strings.h> 
+#include <sys/poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/unistd.h>
-#include <pthread.h>
+#include <future>
+#include <chrono>
+#include <poll.h>
 
 #define PORT_SEC 3551  /* El puerto para numeros secuenciales */
 #define PORT_RAND 3552 /* El puerto para numeros aleatorios */
@@ -33,8 +39,22 @@ enum MODO{
 	aleatrorio
 };
 
-void *server_thread(void *modo_void){
-	enum MODO *modo = (enum MODO *) modo_void;
+void get_async(int *n, const int fd2, char *str, int *done){
+	*n = recv(fd2, str, 100, 0);	
+	if (*n <= 0) {
+		if (*n < 0) perror("recv");
+		*done = 1;
+	}
+}
+
+void accept_async(int *fd2, const int fd, struct sockaddr_in *client, unsigned int *sin_size, const enum MODO modo){
+      if ((*fd2 = accept(fd,(struct sockaddr *)client, sin_size))==-1) {
+         printf("Error en accept(): %d\n",modo);
+         exit(-1);
+      }
+}
+
+int server_thread(enum MODO *modo){
    int fd, fd2; /* descriptores de sockets */
    char str[100];
    int done;
@@ -74,79 +94,103 @@ void *server_thread(void *modo_void){
       exit(-1);
    }     
 
-   
    if(listen(fd,BACKLOG) == -1) {  /* llamada a listen() */
       printf("Error en listen(): %d\n", *modo);
       exit(-1);
    }
 
    int i=0, n; 
+	unsigned char cont = 0;
+	unsigned char mensaje;
+   char *ip_cliente;
+	std::future<void> recieve_future;
+	std::future<void> accept_future;
    while(i < 10 && *modo != apagado) {
       sin_size=sizeof(struct sockaddr_in);
        
       /* A continuación la llamada a accept() */
-      if ((fd2 = accept(fd,(struct sockaddr *)&client, &sin_size))==-1) {
-         printf("Error en accept(): %d\n",*modo);
-         exit(-1);
-      }
+		printf("prewhile1\n");
 
-      char *ip_cliente = inet_ntoa(client.sin_addr);
+		int poll_status;
+		struct pollfd poll_str = {
+			.fd = fd,
+			.events = POLLIN,
+		};
+		do {
+			poll_status = poll(&poll_str, 1, 1000);
+		} while(*modo != apagado && poll_status < 1);
+		printf("postwhile1\n");
+
+		if(*modo == apagado){
+			printf("imaheadout\n");
+      
+			close(fd2); /* cierra fd2 */
+			close(fd);
+			printf("yending\n");
+
+			return 1;
+			printf("ido\n");
+		}
+
+		fd2 = accept(fd, (struct sockaddr *) &client, &sin_size);
+
+      ip_cliente = inet_ntoa(client.sin_addr);
 
       printf("Se obtuvo una conexión desde %s\n", ip_cliente); 
       /* que mostrará la IP del cliente:  inet_ntoa() convierte a una cadena que contiene una dirección IP en un entero largo. */
 
-      send(fd2,"*BIENVENIDO AL FANTASTICO GENERADOR DE NUMEROS PRIMOS*\n(puramente matematico no hay una tabla detras)\n",103,0); 
+      send(fd2,"*BIENVENIDO AL FANTASTICO GENERADOR DE NUMEROS PRIMOS*\n(puramente matematico no hay una tabla detras)\n",104,0); 
       /* que enviará el mensaje de bienvenida al cliente */
 
       /******************/
 
 		printf("Connected.\n");
 
-		unsigned char cont = 0;
 		done = 0;
-		unsigned char mensaje;
 
-		do {		
-			if (!done) { 
+	   while (!done) {		
 				mensaje = (*modo == secuencial)? cont:rand();
 				if (send(fd2, primos[mensaje%25], 2, 0) < 0) {
 					perror("send");
 					done = 1;
 				}
-				n = recv(fd2, str, 100, 0);	
-				if (n <= 0) {
-					if (n < 0) perror("recv");
-					done = 1;
-				}
+
+				printf("prewhile2\n");
+				recieve_future = std::async(std::launch::async, get_async, &n, fd2, str, &done);
+				while(*modo != apagado && recieve_future.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready);
+				printf("postwhile2\n");
+
 				if(*modo == apagado) done = 1;
 				cont++;
-			}
-	  } while (!done);
+	  };
 
       close(fd2); /* cierra fd2 */
       i++;
    }
 	close(fd);
 
-	pthread_exit(0);
+	return 0;
 }
 
 int main(){
 
-	pthread_t server_sec_thread, server_rand_thread;
+	std::future<int> server_sec_thread, server_rand_thread;
 	enum MODO modo_sec = secuencial, modo_rand = aleatrorio;
-	pthread_create(&server_sec_thread, NULL, server_thread, (void *)&modo_sec);
-	pthread_create(&server_rand_thread, NULL, server_thread, (void *)&modo_rand);
+
+	server_sec_thread  = std::async(std::launch::async, server_thread, &modo_sec);
+	server_rand_thread = std::async(std::launch::async, server_thread, &modo_rand);
 
 	printf("El servidor esta en ejecucion, presione cualquier tecla para finalizarlo\n");
 	getchar();
 	modo_sec = apagado;
 	modo_rand = apagado;
 
-	pthread_join(server_sec_thread, NULL);
-	pthread_join(server_rand_thread, NULL);
+	printf("a esperar\n");
+	server_sec_thread.wait();
+	printf("no sec\n");
+	server_rand_thread.wait();
 
-	printf("Se acabaron los numeros primos");
+	printf("Se acabaron los numeros primos, %d, %d", server_sec_thread.get(), server_rand_thread.get());
 
 	return 0;
 }
