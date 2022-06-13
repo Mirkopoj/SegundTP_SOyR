@@ -22,7 +22,7 @@ int main(int argc, char *argv[]){
   	
 	//Indica si hubo error a la hora de corer el código
 	if (argc !=2) { 
-		printf("¡Oh no (⌣́_⌣̀)! Cometiste un error al usarlo, pero no te preocupes, te decimos como: ./cliente <Dirección IP del SERVIDOR>\n",argv[0]);
+		printf("¡Oh no (⌣́_⌣̀)! Cometiste un error al usarlo, pero no te preocupes, te decimos como: %s <Dirección IP del SERVIDOR>\n",argv[0]);
 		exit(-1);
    	}
    
