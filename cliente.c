@@ -1,94 +1,89 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>     
-#include <stdlib.h>   
-#include <string.h>
-#include <sys/unistd.h>
-/* netbd.h es necesitada por la estructura hostent ;-) */
+#include <netdb.h>              
 
-#define PORT 3554         
-/* El Puerto Abierto del nodo remoto */
+#define MAX_DATA 103   
 
-#define MAXDATASIZE 100   
-/* El número máximo de datos en bytes */
+int main(int argc, char *argv[]){
 
-int main(int argc, char *argv[])
-{
-   int fd, numbytes,t;       
-   /* ficheros descriptores */
-   char str[100];
+	int sockid, numbytes,n, opc, PORT; //Fichostdataros descriptores y definiciones       
+	char str[103];
+	char buf[MAX_DATA]; //almacen de textos recibidos -> en BYTES  
+	struct hostent *hostdata; //struct info sobre el host
+	struct sockaddr_in servidor; //info direcciones del servidor para la conexión  
 
-   char buf[MAXDATASIZE];  
-   /* en donde es almacenará el texto recibido */
+   	//seleccionar el port dependiendo de que requieras:
+   	printf(" ¿Así que querés recibir números primos ヽ(•‿•)ノ ?, Bueno \n Para recibirlos en un orden aleatorio inserte: 1 \n De lo contrario, si lo querés recibir en un orden secuencial inserte: 2\n");
+   	scanf("%d",&opc);
+	printf("\n");
+   	PORT = (opc == 1) ? 3552 : 3551 ; 
+  	
+	//Indica si hubo error a la hora de corer el código
+	if (argc !=2) { 
+		printf("¡Oh no (⌣́_⌣̀)! Cometiste un error al usarlo, pero no te preocupes, te decimos como: ./cliente <Dirección IP del SERVIDOR>\n",argv[0]);
+		exit(-1);
+   	}
+   
 
-   struct hostent *he;         
-   /* estructura que recibirá información sobre el nodo remoto */
+	//llamada a gethostbyname() obtengo info del servidor a partir de su IP
+   	if ((hostdata=gethostbyname(argv[1]))==NULL){       
+      		printf("Error en la dirección IP\n");
+      		exit(-1);
+   	}
 
-   struct sockaddr_in server;  
-   /* información sobre la dirección del servidor */
 
-   if (argc !=2) { 
-      /* esto es porque nuestro programa sólo necesitará un
-      argumento, (la IP) */
-      printf("Uso: %s <Dirección IP>\n",argv[0]);
-      exit(-1);
-   }
+   	//llamada a socket(), AF_INET es el dominio (IPv4), SOCK_STREAM nos aseguramos conexión TCP
+   	if ((sockid=socket(AF_INET, SOCK_STREAM, 0))==-1){  
+      		printf("Error en llamar al socket\n");
+      		exit(-1);
+   	}
+	
+	//datos del servidor
+	servidor.sin_family = AF_INET;
+	servidor.sin_port = htons(PORT); 	
+	servidor.sin_addr = *((struct in_addr *)hostdata->h_addr); //*hostdata->h_addr pasa la información de *hostdata a h_addr 
+	bzero(&(servidor.sin_zero), sizeof(servidor.sin_zero));
 
-   if ((he=gethostbyname(argv[1]))==NULL){       
-      /* llamada a gethostbyname() */
-      printf("gethostbyname() error\n");
-      exit(-1);
-   }
+	//llamada a connect(), para ppoder conectarse al servidor
+	if(connect(sockid, (struct sockaddr *)&servidor, sizeof(struct sockaddr))==-1){ 
+		printf("Error al conectar con el servidor\n");
+      		exit(-1);
+   	}
+	
+	//las siguientes dos funciones manejan la comunicación cliente-servidor
+	
+	//llamada a recv(), espera un mensaje del servidor
+	if ((numbytes=recv(sockid,buf,MAX_DATA,0)) == -1){  
+      		printf("Error al recibir \n");
+      		exit(-1);
+   	}
 
-   printf("OK 1\n");
-   if ((fd=socket(AF_INET, SOCK_STREAM, 0))==-1){  
-      /* llamada a socket() */
-      printf("socket() error\n");
-      exit(-1);
-   }
-
-   server.sin_family = AF_INET;
-   server.sin_port = htons(PORT); 
-   /* htons() es necesaria nuevamente ;-o */
-   server.sin_addr = *((struct in_addr *)he->h_addr);  
-   /*he->h_addr pasa la información de ``*he'' a "h_addr" */
-   bzero(&(server.sin_zero),8);
-
-   if(connect(fd, (struct sockaddr *)&server, sizeof(struct sockaddr))==-1){ 
-      /* llamada a connect() */
-      printf("connect() error\n");
-      exit(-1);
-   }
-
-   if ((numbytes=recv(fd,buf,MAXDATASIZE,0)) == -1){  
-      /* llamada a recv() */
-      printf("Error en recv() \n");
-      exit(-1);
-   }
-
-   buf[numbytes]='\0';
-
-   printf("Mensaje del Servidor: %s\n",buf); 
-   /* muestra el mensaje de bienvenida del servidor =) */
-
-     while(printf("> "), fgets(str, 100, stdin), !feof(stdin)) {
-        if (send(fd, str, strlen(str), 0) == -1) {
-            perror("send");
-            exit(1);
+   	buf[numbytes]='\0';
+   	printf("El servidor dice: %s\n",buf); 
+	
+	//llamada a send(), envia un mensaje al servidor
+     	while(fgets(str, 103, stdin), !feof(stdin)) {
+		if (send(sockid, str, strlen(str), 0) == -1) {
+            	perror("send");
+            	exit(1);
         }
 
-       if ((t=recv(fd, str, 100, 0)) > 0) {
-            str[t] = '\0';
-            printf("echo> %s", str);
+       
+
+	if ((n=recv(sockid, str, 103, 0)) > 0) {
+        	str[n] = '\0';
+            	printf("Tú número es: %s", str);
         } else {
-            if (t < 0) perror("recv");
-            else printf("Server closed connection\n");
-            exit(1);
+		if (n < 0) perror("recv")
+            	else printf("¡De malas ლ(ಠ_ಠლ)!El servidor ha finalizado su conexión\n");
+            	exit(1);
         }
     }
-
-   close(fd);   /* cerramos fd =) */
-
+	//se cierra el socket
+   close(sockid);   
 }
