@@ -2,7 +2,7 @@
 
 GITHUB SOLO PARA LOS CODIGOS \\
 
-Los pdfs y demás info que NO SEA CODIGO ingresar a este link: https://www.notion.so/SEGUNDO-TRABAJO-EVALUATORIO-54955daeb036424cbfc21e5a055f75e8
+Los pdfs y demás info que NO SEA CODIGO ingresar a este link: https://www.notion.so/SEGUNDO-TRABAJO-f9b76f336e914c099d9933643b6de6f4
 
 Esta rama es para el codigo del servidor del punto 4
 
