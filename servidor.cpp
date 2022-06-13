@@ -1,17 +1,16 @@
-/* Estos son los ficheros de cabecera usuales */
 #include <strings.h> 
 #include <sys/poll.h>
 #include <arpa/inet.h>
 #include <sys/unistd.h>
 #include <semaphore.h>
-
 #include <future>
 #include <unistd.h>
 
 #define PORT_SEC 3551  /* El puerto para numeros secuenciales */
 #define PORT_RAND 3552 /* El puerto para numeros aleatorios */
-#define BACKLOG 10 /* El número de conexiones permitidas */
+#define BACKLOG 10	  /* El maximo número de clientes simultaneos */
 
+/*"Generador de numeros primos"*/
 const char *primos[25] = {
      " 2"," 3"," 5"," 7",
 "11",     "13",     "17","19",
@@ -25,98 +24,133 @@ const char *primos[25] = {
 	                      "97"
 };
 
+/*Modos de operacion de los threads*/
 enum MODO{
 	apagado,
 	secuencial,
 	aleatrorio
 };
 
+/*Estructura fifo para coordinar los futuros de cada cliente*/
 typedef struct client_fifo_struct{
-	int tad[BACKLOG];
+	int arr[BACKLOG];
 	int entrada;
 	int salida;
 	sem_t sem_fifo;
 } client_fifo_t;
 
-void client_thread(int fd2, enum MODO *modo, sem_t *anti_backlog, client_fifo_t *client_fifo, int mi_slot){
-   char str[100];
-	int n, errsv;
-	unsigned char mensaje, done = 0, cont = 0;
+/*Funcion para atender a un cliente*/
+void client_thread(int client_socket, enum MODO *modo, sem_t *anti_backlog, client_fifo_t *client_fifo, int mi_slot);
 
-	while (!done) {		
+/*Funcion para operar el servidor en cada puerto*/
+void server_thread(enum MODO *modo);
+
+int main(){
+
+	/*future es equivalente al pthread_t de C, pero permite guardar un posible return del thread*/
+	std::future<void> server_sec_thread, server_rand_thread;
+	enum MODO modo_sec = secuencial, modo_rand = aleatrorio;
+
+	/*Se lanzan los threads para cada puerto*/
+	server_sec_thread  = std::async(std::launch::async, server_thread, &modo_sec);
+	server_rand_thread = std::async(std::launch::async, server_thread, &modo_rand);
+
+	printf("El servidor esta en ejecucion, presione [ENTER] para finalizarlo\n");
+	getchar();
+	modo_sec = apagado;
+	modo_rand = apagado;
+
+	/*Equivalente al join() de C*/
+	server_sec_thread.wait();
+	server_rand_thread.wait();
+
+	printf("Se acabaron los numeros primos D;");
+
+	return 0;
+}
+
+void client_thread(int client_socket, enum MODO *modo, sem_t *anti_backlog, client_fifo_t *client_fifo, int mi_slot){
+		/* Envia una calida bienvenida al cliente */
+      send(client_socket,"*BIENVENIDO AL FANTASTICO GENERADOR DE NUMEROS PRIMOS*\n(puramente matematico no hay una tabla detras)\n",102,0); 
+
+   char *str;
+	int n, errsv;
+	unsigned char mensaje, client_stop = 0, cont = 0;
+
+	/* Loop principal de atencion al cliente */
+	while (!client_stop) {		
+
+		/* Se envia un numero primo */
 		mensaje = (*modo == secuencial)? (cont++):rand();
-		if (send(fd2, primos[mensaje%25], 2, 0) < 0) {
+		if (send(client_socket, primos[mensaje%25], 2, 0) < 0) {
 			perror("send");
-			done = 1;
+			client_stop = 1;
 		}
 
-		printf("prewhile2\n");
-
+		/* Se espera una respuesta del cliente de forma no bloqueante de modo que se pueda abortar el server */
 		n=0;
-		while(*modo != apagado && n < 1 && !done){
-			n = recv(fd2, str, 100, MSG_DONTWAIT);	
+		while(*modo != apagado && n < 1 && !client_stop){
+			n = recv(client_socket, str, 1, MSG_DONTWAIT);	
 			errsv = errno;
-			if (n == 0) done = 1;
+			if (n == 0) client_stop = 1;
 			if (n < 0){
 				if((errsv!=EAGAIN)&&(errsv!=EWOULDBLOCK)){
 					perror("recv");
-					done = 1;
+					client_stop = 1;
 				}
 			}
 		}
 
-		if(*modo == apagado) done = 1;
-		printf("postwhile2, modo: %d, apagado: %d, n: %d, done: %d\n", *modo, apagado, n, done);
-	};
+		/* En case de que se abortara el server se finaliza el cliente */
+		if(*modo == apagado) client_stop = 1;
+	}
+	/* Fin del loop principal de atencion al cliente */
 
-	close(fd2); 
+	close(client_socket); 
+
+	/* Devulve el indice que ocupaba en el array de futuros a la FIFO */
 	sem_wait(&(client_fifo->sem_fifo));
-	client_fifo->tad[client_fifo->entrada] = mi_slot;
+	client_fifo->arr[client_fifo->entrada] = mi_slot;
 	client_fifo->entrada = (client_fifo->entrada+1)%BACKLOG;
 	sem_post(&(client_fifo->sem_fifo));
+
 	sem_post(anti_backlog);
+
 	return;
 }
 
 void server_thread(enum MODO *modo){
-   int fd, fd2; /* descriptores de sockets */
+   int server_socket, client_socket; 
 
    struct sockaddr_in server; 
-   /* para la información de la dirección del servidor */
-
    struct sockaddr_in client; 
-   /* para la información de la dirección del cliente */
-
    unsigned int sin_size;
 
-   /* A continuación la llamada a socket() */
-   if ((fd=socket(AF_INET, SOCK_STREAM, 0)) == -1 ) {  
+   /* Se crea el server_socket*/
+   if ((server_socket=socket(AF_INET, SOCK_STREAM, 0)) == -1 ) {  
       printf("error en socket()\n");
       exit(-1);
    }
 
-
    server.sin_family = AF_INET;         
 
+	/* Se asigna un puerto segun el modo */
 	uint16_t puerto = (*modo == secuencial)? PORT_SEC:PORT_RAND;
    server.sin_port = htons(puerto); 
-   /* Convierte de host a direccion de red corta  */
 
+	/* Se guarda la ip del server*/
    server.sin_addr.s_addr = INADDR_ANY; 
-   /* INADDR_ANY coloca nuestra dirección IP automáticamente */
 
-   //memset(&(server.sin_zero), 0, sizeof(server.sin_zero));
    bzero(&(server.sin_zero), sizeof(server.sin_zero)); 
-   /* escribimos ceros en el reto de la estructura */
 
-
-   /* A continuación la llamada a bind() */
-   if(bind(fd,(struct sockaddr*)&server, sizeof(struct sockaddr))==-1) {
+	/* Se asocia el puerto asignado al socket */
+   if(bind(server_socket,(struct sockaddr*)&server, sizeof(struct sockaddr))==-1) {
       printf("error en bind() \n");
       exit(-1);
    }     
 
-   if(listen(fd,BACKLOG) == -1) {  /* llamada a listen() */
+	/* "Publica" el server_socket */
+   if(listen(server_socket,BACKLOG) == -1) { 
       printf("Error en listen(): %d\n", *modo);
       exit(-1);
    }
@@ -125,38 +159,41 @@ void server_thread(enum MODO *modo){
 	unsigned char cont = 0;
    char *ip_cliente;
 
-	int poll_status;
+	/* Estructura de poll se utilizará en accept*/
+	int poll_status = 0;
 	struct pollfd poll_str = {
-		.fd = fd,
+		.fd = server_socket,
 		.events = POLLIN,
 	};
 
 	sem_t anti_backlog;
 
+	/* FIFO de direcciones en un array de futuros para el lanzamiento de los threads de clientes */
 	client_fifo_t client_fifo;
 	sem_init(&client_fifo.sem_fifo, 0, 1);
 	client_fifo.entrada = 0;
 	client_fifo.salida = 0;
-	for(i=0;i<BACKLOG;i++){
-		client_fifo.tad[i] = i;	
-	}
+	for(i=0;i<BACKLOG;i++) client_fifo.arr[i] = i;	
 	i=0;
 	int client_slot;
 
+	/* Array de futuros y semaforo para impedir que se atiendan mas clientes de lo que el BACKLOG permite */
 	sem_init(&anti_backlog, 0, BACKLOG);
 	std::future<void> clientes[BACKLOG];
+
+	/* Para un printf */
+	int puertos[3] = {
+		-1,
+		PORT_SEC,
+		PORT_RAND,
+	};
    
+	/* Loop principal del server */
 	while(*modo != apagado) {
       sin_size=sizeof(struct sockaddr_in);
        
-      /* A continuación la llamada a accept() */
-		printf("prewhile1\n");
-
-		do {
-			poll_status = poll(&poll_str, 1, 1000);
-		} while(*modo != apagado && poll_status < 1);
-
-		printf("postwhile1\n");
+      /* Se espera a un cliente disponible o a que se aborte el server */
+		while(*modo != apagado && poll_status < 1) poll_status = poll(&poll_str, 1, 1000);
 
 		if(poll_status < 0){
 			printf("Error en poll(): %d\n", *modo);
@@ -164,67 +201,38 @@ void server_thread(enum MODO *modo){
 		}
 
 		if(*modo == apagado){
-			printf("imaheadout\n");
-      
-			close(fd2); /* cierra fd2 */
-			close(fd);
-			printf("yending\n");
+			close(client_socket); 
+			close(server_socket);
 
 			return;
-			printf("ido\n");
 		}
 
-		fd2 = accept(fd, (struct sockaddr *) &client, &sin_size);
+		/* Recive al cliente */
+		client_socket = accept(server_socket, (struct sockaddr *) &client, &sin_size);
 
       ip_cliente = inet_ntoa(client.sin_addr);
 
-      printf("Se obtuvo una conexión desde %s\n", ip_cliente); 
-      /* que mostrará la IP del cliente:  inet_ntoa() convierte a una cadena que contiene una dirección IP en un entero largo. */
+      printf("Se obtuvo una conexión desde %s, en el puerto: %d\n", ip_cliente, puertos[*modo]); 
 
-      send(fd2,"*BIENVENIDO AL FANTASTICO GENERADOR DE NUMEROS PRIMOS*\n(puramente matematico no hay una tabla detras)\n",102,0); 
-      /* que enviará el mensaje de bienvenida al cliente */
 
-      /******************/
-
-		printf("Connected.\n");
-
-		int sval;
+		/* No procesa mas clientes en simultaneo de lo que el BACKLOG permite */
 		sem_wait(&anti_backlog);
 
+		/*Busca en el FIFO de direcciones a que futuro asignar el thread del cliente */
 		sem_wait(&client_fifo.sem_fifo);
-		client_slot = client_fifo.tad[client_fifo.salida];
+		client_slot = client_fifo.arr[client_fifo.salida];
 		client_fifo.salida = (client_fifo.salida+1)%BACKLOG;
 		sem_post(&client_fifo.sem_fifo);
 
-		clientes[client_slot] = std::async(std::launch::async, client_thread, fd2, modo, &anti_backlog, &client_fifo, client_slot);
+		/* Lanza un nuevo thread para el cliente entrante */
+		clientes[client_slot] = std::async(std::launch::async, client_thread, client_socket, modo, &anti_backlog, &client_fifo, client_slot);
       
 
    }
-	close(fd2);
-	close(fd);
+	/* Fin del loop principal del server */
+
+	close(client_socket);
+	close(server_socket);
 
 	return;
-}
-
-int main(){
-
-	std::future<void> server_sec_thread, server_rand_thread;
-	enum MODO modo_sec = secuencial, modo_rand = aleatrorio;
-
-	server_sec_thread  = std::async(std::launch::async, server_thread, &modo_sec);
-	server_rand_thread = std::async(std::launch::async, server_thread, &modo_rand);
-
-	printf("El servidor esta en ejecucion, presione cualquier tecla para finalizarlo\n");
-	getchar();
-	modo_sec = apagado;
-	modo_rand = apagado;
-
-	printf("a esperar\n");
-	server_sec_thread.wait();
-	printf("no sec\n");
-	server_rand_thread.wait();
-
-	printf("Se acabaron los numeros primos");
-
-	return 0;
 }
