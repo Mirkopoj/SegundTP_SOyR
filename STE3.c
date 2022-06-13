@@ -47,6 +47,8 @@ void *escritor(void *ptr)
         sem_post(&E); //libera el acceso a la contador de escritores
 		printf("\nEscritor: %d, Escritores: %d, Lectores: %d, Estado: Salida", esc, escritores, lectores);
     }
+	
+	pthread_exit(0);
 }
 
 //función lector
@@ -87,6 +89,7 @@ static void *lector(void *ptr)
 			sleep(5);
 		}
     }
+	pthread_exit(0);
 }
         
 int main()
