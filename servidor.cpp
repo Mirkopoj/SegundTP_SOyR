@@ -193,19 +193,14 @@ void server_thread(enum MODO *modo){
       sin_size=sizeof(struct sockaddr_in);
        
       /* Se espera a un cliente disponible o a que se aborte el server */
-		while(*modo != apagado && poll_status < 1) poll_status = poll(&poll_str, 1, 1000);
+		while(*modo != apagado && poll_status == 0) poll_status = poll(&poll_str, 1, 1000);
 
 		if(poll_status < 0){
 			printf("Error en poll(): %d\n", *modo);
 			exit(-1);
 		}
 
-		if(*modo == apagado){
-			close(client_socket); 
-			close(server_socket);
-
-			return;
-		}
+		if(*modo == apagado) break;
 
 		/* Recive al cliente */
 		client_socket = accept(server_socket, (struct sockaddr *) &client, &sin_size);
