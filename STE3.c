@@ -23,7 +23,7 @@ E controla el acceso a contador de escritores*/
 sem_t L, semE, E; 
 
 //función escritor
-void *escritor(void *ptr)
+static void *escritor(void *ptr)
 {
     int e = 1, esc;//Para la salida del while
 	
