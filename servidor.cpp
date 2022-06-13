@@ -31,13 +31,20 @@ enum MODO{
 	aleatrorio
 };
 
-void client_thread(int fd2, enum MODO *modo, sem_t *anti_backlog){
+typedef struct client_fifo_struct{
+	int tad[BACKLOG];
+	int entrada;
+	int salida;
+	sem_t sem_fifo;
+} client_fifo_t;
+
+void client_thread(int fd2, enum MODO *modo, sem_t *anti_backlog, client_fifo_t *client_fifo, int mi_slot){
    char str[100];
 	int n, errsv;
-	unsigned char mensaje, done = 0, cont = 0;
+	unsigned char mensaje, done = 0, cont = 0xFF;
 
 	while (!done) {		
-		mensaje = (*modo == secuencial)? cont:rand();
+		mensaje = (*modo == secuencial)? (cont++):rand();
 		if (send(fd2, primos[mensaje%25], 2, 0) < 0) {
 			perror("send");
 			done = 1;
@@ -59,11 +66,14 @@ void client_thread(int fd2, enum MODO *modo, sem_t *anti_backlog){
 		}
 
 		if(*modo == apagado) done = 1;
-		cont++;
 		printf("postwhile2, modo: %d, apagado: %d, n: %d, done: %d\n", *modo, apagado, n, done);
 	};
 
 	close(fd2); 
+	sem_wait(&(client_fifo->sem_fifo));
+	client_fifo->tad[client_fifo->entrada] = mi_slot;
+	client_fifo->entrada = (client_fifo->entrada+1)%BACKLOG;
+	sem_post(&(client_fifo->sem_fifo));
 	sem_post(anti_backlog);
 	return;
 }
@@ -111,7 +121,7 @@ void server_thread(enum MODO *modo){
       exit(-1);
    }
 
-   int i=0; 
+   int i; 
 	unsigned char cont = 0;
    char *ip_cliente;
 
@@ -122,6 +132,17 @@ void server_thread(enum MODO *modo){
 	};
 
 	sem_t anti_backlog;
+
+	client_fifo_t client_fifo;
+	sem_init(&client_fifo.sem_fifo, 0, 0);
+	client_fifo.entrada = 0;
+	client_fifo.salida = 0;
+	for(i=0;i<BACKLOG;i++){
+		client_fifo.tad[i] = i;	
+	}
+	i=0;
+	int client_slot;
+
 	sem_init(&anti_backlog, 0, BACKLOG);
 	std::future<void> clientes[BACKLOG];
    
@@ -167,44 +188,15 @@ void server_thread(enum MODO *modo){
 
 		printf("Connected.\n");
 
-		/*
-		done = 0;
-
-	   while (!done) {		
-				mensaje = (*modo == secuencial)? cont:rand();
-				if (send(fd2, primos[mensaje%25], 2, 0) < 0) {
-					perror("send");
-					done = 1;
-				}
-
-				printf("prewhile2\n");
-
-				n=0;
-				while(*modo != apagado && n < 1 && !done){
-					n = recv(fd2, str, 100, MSG_DONTWAIT);	
-					errsv = errno;
-					if (n == 0) done = 1;
-					if (n < 0){
-						if((errsv!=EAGAIN)&&(errsv!=EWOULDBLOCK)){
-							perror("recv");
-							done = 1;
-						}
-					}
-				}
-
-				if(*modo == apagado) done = 1;
-				cont++;
-				printf("postwhile2, modo: %d, apagado: %d, n: %d, done: %d\n", *modo, apagado, n, done);
-	  };
-
-      close(fd2); 
-		i++;
-		*/
-
 		int sval;
 		sem_wait(&anti_backlog);
-		sem_getvalue(&anti_backlog, &sval);
-		clientes[sval] = std::async(std::launch::async, client_thread, fd2, modo, &anti_backlog);
+
+		sem_wait(&client_fifo.sem_fifo);
+		client_slot = client_fifo.tad[client_fifo.salida];
+		client_fifo.salida = (client_fifo.salida+1)%BACKLOG;
+		sem_post(&client_fifo.sem_fifo);
+
+		clientes[client_slot] = std::async(std::launch::async, client_thread, fd2, modo, &anti_backlog, &client_fifo, client_slot);
       
 
    }
