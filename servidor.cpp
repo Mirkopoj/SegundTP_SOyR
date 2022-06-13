@@ -41,7 +41,7 @@ typedef struct client_fifo_struct{
 void client_thread(int fd2, enum MODO *modo, sem_t *anti_backlog, client_fifo_t *client_fifo, int mi_slot){
    char str[100];
 	int n, errsv;
-	unsigned char mensaje, done = 0, cont = 0xFF;
+	unsigned char mensaje, done = 0, cont = 0;
 
 	while (!done) {		
 		mensaje = (*modo == secuencial)? (cont++):rand();
@@ -134,7 +134,7 @@ void server_thread(enum MODO *modo){
 	sem_t anti_backlog;
 
 	client_fifo_t client_fifo;
-	sem_init(&client_fifo.sem_fifo, 0, 0);
+	sem_init(&client_fifo.sem_fifo, 0, 1);
 	client_fifo.entrada = 0;
 	client_fifo.salida = 0;
 	for(i=0;i<BACKLOG;i++){
