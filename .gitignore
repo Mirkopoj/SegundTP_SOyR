@@ -1,1 +1,4 @@
-cliente
+*
+!*.c
+!.gitignore
+!README.md
