@@ -65,7 +65,7 @@ int main(){
 	server_sec_thread.wait();
 	server_rand_thread.wait();
 
-	printf("Se acabaron los numeros primos D;\n");
+	printf("Se acabaron los numeros primos ◉╭╮◉\n");
 
 	return 0;
 }
@@ -86,7 +86,7 @@ void client_thread(int client_socket, enum MODO *modo, sem_t *anti_backlog, clie
 		if (send(client_socket, primos[mensaje%25], 2, 0) < 0) {
 			perror("send");
 			client_stop = 1;
-		}
+		} 
 
 		/* Se espera una respuesta del cliente de forma no bloqueante de modo que se pueda abortar el server */
 		n=0;
