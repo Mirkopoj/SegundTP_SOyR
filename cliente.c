@@ -2,9 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <netdb.h>              
 
 #define MAX_DATA 103   
@@ -25,7 +22,7 @@ int main(int argc, char *argv[]){
   	
 	//Indica si hubo error a la hora de corer el código
 	if (argc !=2) { 
-		printf("¡Oh no (⌣́_⌣̀)! Cometiste un error al usarlo, pero no te preocupes, te decimos como: ./cliente <Dirección IP del SERVIDOR>\n",argv[0]);
+		printf("¡Oh no (⌣́_⌣̀)! Cometiste un error al usarlo, pero no te preocupes, te decimos como: %s <Dirección IP del SERVIDOR>\n",argv[0]);
 		exit(-1);
    	}
    
@@ -71,19 +68,20 @@ int main(int argc, char *argv[]){
 		if (send(sockid, str, strlen(str), 0) == -1) {
             	perror("send");
             	exit(1);
-        }
-
+        	}
+	}
        
-
 	if ((n=recv(sockid, str, 103, 0)) > 0) {
         	str[n] = '\0';
             	printf("Tú número es: %s", str);
         } else {
-		if (n < 0) perror("recv")
-            	else printf("¡De malas ლ(ಠ_ಠლ)!El servidor ha finalizado su conexión\n");
-            	exit(1);
-        }
-    }
+		if (n < 0){
+			perror("recv");
+		} else {
+			printf("¡De malas ლ(ಠ_ಠლ)!El servidor ha finalizado su conexión\n");
+            		exit(1);
+        	}
+    	}
 	//se cierra el socket
    close(sockid);   
 }
