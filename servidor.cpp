@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <strings.h> 
 #include <sys/poll.h>
 #include <arpa/inet.h>
@@ -64,7 +65,7 @@ int main(){
 	server_sec_thread.wait();
 	server_rand_thread.wait();
 
-	printf("Se acabaron los numeros primos D;");
+	printf("Se acabaron los numeros primos D;\n");
 
 	return 0;
 }
@@ -160,7 +161,7 @@ void server_thread(enum MODO *modo){
    char *ip_cliente;
 
 	/* Estructura de poll se utilizará en accept*/
-	int poll_status = 0;
+	int poll_status;
 	struct pollfd poll_str = {
 		.fd = server_socket,
 		.events = POLLIN,
@@ -193,6 +194,7 @@ void server_thread(enum MODO *modo){
       sin_size=sizeof(struct sockaddr_in);
        
       /* Se espera a un cliente disponible o a que se aborte el server */
+		poll_status = 0;
 		while(*modo != apagado && poll_status == 0) poll_status = poll(&poll_str, 1, 1000);
 
 		if(poll_status < 0){
