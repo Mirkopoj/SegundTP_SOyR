@@ -209,7 +209,7 @@ void server_thread(enum MODO *modo){
 
       ip_cliente = inet_ntoa(client.sin_addr);
 
-      printf("%s, se conectó al en el puerto: %d\n", ip_cliente, puertos[*modo]); 
+      printf("%s, se conectó en el puerto: %d\n", ip_cliente, puertos[*modo]); 
 
 
 		/* No procesa mas clientes en simultaneo de lo que el BACKLOG permite */
