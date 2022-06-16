@@ -30,7 +30,8 @@ int main(int argc, char *argv[]){
    	// puerto 3552 es aleatorio, 3551 es secuencial
 	printf(" ¿Así que querés recibir números primos /(•‿•)/ ?, Bueno \n");
 	do{
-		printf("Para recibirlos en un orden aleatorio inserte: 1 \n De lo contrario, si lo querés recibir en un orden secuencial inserte: 2\n");
+		printf("Para recibirlos en un orden aleatorio inserte: 1\nDe lo contrario, si lo querés recibir en un orden secuencial inserte: 2\n");
+		printf("Esta es la rama extrema de git, si queres llevar el servidor al limite presioná 3\n");
    		scanf("%d",&opc);
 		printf("\n");
 		switch (opc){
@@ -175,7 +176,7 @@ void *thread_cliente(void * ip){
 			}
 			if ((n=recv(sockid, str, 3, 0)) > 0) {
 				str[n] = '\0';
-				printf("Tú número es: %s \n", str);
+				printf("%s ", str);
 			} else {
 				if (n < 0){
 					perror("recv");
