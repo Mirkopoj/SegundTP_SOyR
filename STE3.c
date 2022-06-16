@@ -36,7 +36,6 @@ static void *escritor(void *ptr)
 	sem_wait(&semEscritores);//bloquear otros escritores
 	printf("\nEscritor: %d, Escritores: %d, Lectores: %d, Estado: Escribiendo", escritor, escritores, lectores);
 		sleep(5);//escribe
-		e = 0;//habilito mi salida
 	sem_post(&semEscritores);//libera otros escritores
 
 	sem_wait(&ContadorEectores); //bloquea el acceso a la variable contador de escritores
@@ -95,7 +94,7 @@ int main()
 	//inicio los semaforos
 	sem_init(&ContadrLectores, 0, 1);
 	sem_init(&semEscritores, 0, 1);
-	sem_init(&EContadorEectores, 0, 1);
+	sem_init(&ContadorEectores, 0, 1);
 	
 	//creo los hilos
 	pthread_t hilos[Nhilos];
@@ -154,7 +153,8 @@ int main()
 	
 	
 	//Espera todos los hilos
-	for(int i=0;i<h;i++){
+	int i;
+	for(i=0;i<Nhilos;i++){
 		pthread_join(hilos[i], NULL);
 	}
 	
