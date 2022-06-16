@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
 				PORT = 3551;
 				break;
 			case 3:
-				stress_test(argv[1]);
+				stress_test((void *)argv[1]);
 				break;
 			default:
 				printf("CHE ヽ(ಠ_ಠ)ノ, te dije 1, 2 o 3... Porfa elegi uno válido.\n");
@@ -128,8 +128,11 @@ void stress_test(void *ip){
 	printf("En caso de arrepentirte despues de presionar [ENTER]\n");
 	printf("Recomendamos terminar el servidor presionando [ENTER] en su terminal\n");
 	printf("De esa manera se garantiza el correcto cerrado de todos los sockets\n");
+	
+	fflush(stdout);
 	getchar();
-	pthread_t clientes[40];
+
+	pthread_t clientes[ 40];
 	for(int i=0;i<40;i++){
 		pthread_create(&clientes[i], NULL, thread_cliente, ip);
 	}
