@@ -23,18 +23,30 @@ int main(int argc, char *argv[]){
 	
    	//seleccionar el port dependiendo de que requieras:
    	// puerto 3552 es aleatorio, 3551 es secuencial
-	printf(" ¿Así que querés recibir números primos /(•‿•)/ ?, Bueno \n Para recibirlos en un orden aleatorio inserte: 1 \n De lo contrario, si lo querés recibir en un orden secuencial inserte: 2\n");
-   	scanf("%d",&opc);
-	printf("\n");
-   	PORT = (opc == 1) ? 3552 : 3551 ; 
-  	
-printf("PRE GETHOST\n");
+	printf(" ¿Así que querés recibir números primos /(•‿•)/ ?, Bueno \n");
+	do{
+		printf("Para recibirlos en un orden aleatorio inserte: 1 \n De lo contrario, si lo querés recibir en un orden secuencial inserte: 2\n");
+   		scanf("%d",&opc);
+		printf("\n");
+		switch (opc){
+			case 1:
+				PORT = 3552;
+				break;
+			case 2:
+				PORT = 3551;
+				break;
+			default:
+				printf("CHE ヽ(ಠ_ಠ)ノ, te dije 1 o 2... Porfa elegi uno válido.\n");
+				opc = 0;
+				break;
+		}	
+	}while(opc == 0);
+
 	//llamada a gethostbyname() obtengo info del servidor a partir de su IP
    	if ((hostdata=gethostbyname(argv[1]))==NULL){       
       		printf("Error en la dirección IP\n");
       		exit(-1);
    	}
-printf("PRESOCKET\n");
 
    	//llamada a socket(), AF_INET es el dominio (IPv4), SOCK_STREAM nos aseguramos conexión TCP
    	if ((sockid=socket(AF_INET, SOCK_STREAM, 0))==-1){  
@@ -42,14 +54,12 @@ printf("PRESOCKET\n");
       		exit(-1);
    	}
 	
-printf("saliSOCKET\n");
 	//datos del servidor
 	servidor.sin_family = AF_INET;
 	servidor.sin_port = htons(PORT); 	
 	servidor.sin_addr = *((struct in_addr *)hostdata->h_addr); //*hostdata->h_addr pasa la información de *hostdata a h_addr 
 	bzero(&(servidor.sin_zero), sizeof(servidor.sin_zero));
 
-printf("PRECONNECT\n");
 	//llamada a connect(), para ppoder conectarse al servidor
 	if(connect(sockid, (struct sockaddr *)&servidor, sizeof(struct sockaddr))==-1){ 
 		printf("Error al conectar con el servidor\n");
@@ -58,7 +68,6 @@ printf("PRECONNECT\n");
 	
 	//las siguientes dos funciones manejan la comunicación cliente-servidor
 	
-printf("PRERECV\n");
 	//llamada a recv(), espera un mensaje del servidor
 	if ((numbytes=recv(sockid,buf,MAX_DATA,0)) == -1){  
       		printf("Error al recibir \n");
@@ -68,29 +77,34 @@ printf("PRERECV\n");
    	buf[numbytes]='\0';
    	printf("El servidor dice: %s\n",buf); 
 	
+	printf("Si en algun momento no sabes que hacer, estas peridido, desolado y necesitas ayuda (｡•́︿•̀｡), tipea 'help'.\n\n");
 	//llamada a send(), envia un mensaje al servidor
      	while(strcmp(fgets(str, 5, stdin), "exit")) {
-	//while(1){ //!= de exity aclarar exit termina y eliminar habra primo
-	//getchar();
+		if (strcmp(str, "help")==0){
+			printf("Para recibir más numeros presioná [ENTER]\n");
+			printf("Para finalizar la conexión tipea 'exit'\n\n");
+			printf("Como te habrás dado cuenta, vos para poner 'help' tuviste que presionar [ENTER]...\n");
+			printf("Así que,     ノ(˘⌣˘ノ), acá está tu número \n");
+			continue;
+		}
 		if (send(sockid, "a", 1, 0) == -1) {
-            	perror("send");
-            	exit(1);
-        	}
-	//}
-      // 
-	printf("Habra primo?\n");
-	if ((n=recv(sockid, str, 3, 0)) > 0) {
-        	str[n] = '\0';
-            	printf("Tú número es: %s \n", str);
-        } else {
-		if (n < 0){
-			perror("recv");
-		} else {
-			printf("¡De malas ლ(ಠ_ಠლ)!El servidor ha finalizado su conexión\n");
+            		perror("send");
             		exit(1);
         	}
-    	}
-}
+		if ((n=recv(sockid, str, 3, 0)) > 0) {
+        	str[n] = '\0';
+            	printf("Tú número es: %s \n", str);
+        	} else {
+			if (n < 0){
+				perror("recv");
+			} else {
+				printf("¡De malas ლ(ಠ_ಠლ)!El servidor ha finalizado su conexión\n");
+        		}
+			close(sockid);
+            		exit(-1);
+    		}
+		strcpy(str,"abcd");
+	}
 	//se cierra el socket
-   close(sockid);   
+	close(sockid);   
 }
