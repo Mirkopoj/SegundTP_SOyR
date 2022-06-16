@@ -77,7 +77,7 @@ printf("PRERECV\n");
             	exit(1);
         	}
 	//}
-      //a 
+      // 
 	printf("Habra primo?\n");
 	if ((n=recv(sockid, str, 3, 0)) > 0) {
         	str[n] = '\0';
