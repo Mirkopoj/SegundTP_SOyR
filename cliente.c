@@ -31,7 +31,7 @@ int main(int argc, char *argv[]){
 	printf(" ¿Así que querés recibir números primos /(•‿•)/ ?, Bueno \n");
 	do{
 		printf("Para recibirlos en un orden aleatorio inserte: 1\nDe lo contrario, si lo querés recibir en un orden secuencial inserte: 2\n");
-		printf("Esta es la rama extrema de git, si queres llevar el servidor al limite presioná 3\n");
+		printf("Esta es la rama extrema de git ლ(◣_◢)ლ, si queres llevar el servidor al limite presioná: 3\n");
    		scanf("%d",&opc);
 		printf("\n");
 		switch (opc){
@@ -123,8 +123,12 @@ void stress_test(void *ip){
 	printf("\n\tEstas a punto de generar 40 threads");
 	printf("\n\tCada uno va a generar un cliente que pida 1000 numeros");
 	printf("\n\tEsto se va a repetir 1000 veces\n");
-	printf("\n\tEstamos hablando de 40.000.000 de numeros pedidos\n");
+	printf("\n\tEstamos hablando de 40.000.000 de numeros pedidos\n\n");
 	printf("Si estas seguro precioná [ENTER] para continuar\n");
+	printf("En caso de arrepentirte despues de presionar [ENTER]\n");
+	printf("Recomendamos terminar el servidor presionando [ENTER] en su terminal\n");
+	printf("De esa manera se garantiza el correcto cerrado de todos los sockets\n");
+	getchar();
 	pthread_t clientes[40];
 	for(int i=0;i<40;i++){
 		pthread_create(&clientes[i], NULL, thread_cliente, ip);
