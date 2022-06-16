@@ -119,6 +119,12 @@ int main(int argc, char *argv[]){
 }
 
 void stress_test(void *ip){
+	printf("\n\t¡¡¡¡¡ADVERTENCIA!!!!!\n");
+	printf("\n\tEstas a punto de generar 40 threads");
+	printf("\n\tCada uno va a generar un cliente que pida 1000 numeros");
+	printf("\n\tEsto se va a repetir 1000 veces\n");
+	printf("\n\tEstamos hablando de 40.000.000 de numeros pedidos\n");
+	printf("Si estas seguro precioná [ENTER] para continuar\n");
 	pthread_t clientes[40];
 	for(int i=0;i<40;i++){
 		pthread_create(&clientes[i], NULL, thread_cliente, ip);
@@ -126,6 +132,7 @@ void stress_test(void *ip){
 	for(int i=0;i<40;i++){
 		pthread_join(clientes[i],0);
 	}
+	printf("\n\t40.000.000 de numeros primos mas tarde el server sigue en pie");
 	exit(0);
 }
 
