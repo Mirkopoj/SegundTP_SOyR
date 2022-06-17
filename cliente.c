@@ -129,7 +129,7 @@ void stress_test(void *ip){
 	printf("Recomendamos terminar el servidor presionando [ENTER] en su terminal\n");
 	printf("De esa manera se garantiza el correcto cerrado de todos los sockets\n");
 	
-	fflush(stdout);
+	getchar();
 	getchar();
 
 	pthread_t clientes[ 40];
