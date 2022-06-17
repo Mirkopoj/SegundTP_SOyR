@@ -189,6 +189,7 @@ void server_thread(enum MODO *modo){
 		PORT_RAND,
 	};
    
+	int contador_clientes;
 	/* Loop principal del server */
 	while(*modo != apagado) {
       sin_size=sizeof(struct sockaddr_in);
@@ -209,7 +210,10 @@ void server_thread(enum MODO *modo){
 
       ip_cliente = inet_ntoa(client.sin_addr);
 
-      printf("%s, se conectó en el puerto: %d\n", ip_cliente, puertos[*modo]); 
+		if(sem_getvalue(&anti_backlog, &contador_clientes)!=0){
+			contador_clientes = BACKLOG+1;
+		}
+      printf("%s, se conectó en el puerto: %d. Clientes conectados: %d\n", ip_cliente, puertos[*modo], BACKLOG-contador_clientes); 
 
 
 		/* No procesa mas clientes en simultaneo de lo que el BACKLOG permite */
