@@ -7,3 +7,5 @@ Los pdfs y demás info que NO SEA CODIGO ingresar a este link: https://www.notio
 Esta rama es para el codigo del cliente del punto 4
 
 Una version alternativa que incorpora un Stress Test para el servidor
+
+Compilar con -lpthread
